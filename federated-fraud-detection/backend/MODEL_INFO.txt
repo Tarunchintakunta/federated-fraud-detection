@@ -1,0 +1,77 @@
+Federated Fraud Detection Model - Information for Professor
+================================================================
+
+MODEL FILE:
+-----------
+File: models/saved/fraud_detection_model.h5
+Format: Keras H5 format (TensorFlow/Keras)
+Size: ~50KB - 2MB
+
+Architecture:
+- 4-layer neural network
+- Input: 29 features (Amount + V1-V28)
+- Hidden layers: 64 → 32 → 16 neurons
+- Output: 1 neuron (fraud probability 0-1)
+- Activation: ReLU (hidden), Sigmoid (output)
+- Dropout: 0.3 and 0.2 for regularization
+
+Training:
+- Federated Learning with 5 clients
+- Differential Privacy enabled
+- Secure Aggregation enabled
+- Trained on Kaggle Credit Card Fraud Detection dataset
+
+
+RESULTS FILE:
+-------------
+File: results/performance.json
+Format: JSON
+Contains:
+- Training metrics (AUC, F1-score, Accuracy, Precision, Recall)
+- Privacy metrics (epsilon, delta)
+- Training history (metrics per round)
+- Configuration (clients, rounds, epochs, etc.)
+- Baseline comparison
+- Privacy attack results
+
+
+HOW TO USE THE MODEL:
+---------------------
+1. Load the model:
+   import tensorflow as tf
+   model = tf.keras.models.load_model('fraud_detection_model.h5')
+
+2. Make predictions:
+   import numpy as np
+   # Features: [Amount, V1, V2, ..., V28] (29 features total)
+   features = np.array([[amount, v1, v2, ..., v28]])
+   prediction = model.predict(features)
+   fraud_probability = prediction[0][0]
+
+3. View results:
+   import json
+   with open('performance.json') as f:
+       results = json.load(f)
+   print(f"AUC: {results['federated_model']['auc']:.4f}")
+
+
+REQUIREMENTS:
+-------------
+- Python 3.8+
+- TensorFlow 2.15.0+
+- NumPy
+- Pandas
+
+To install:
+pip install tensorflow numpy pandas
+
+
+NOTES:
+------
+- Model expects 29 features (Amount + V1-V28)
+- Features should be scaled (StandardScaler) before prediction
+- Output is probability between 0 and 1
+- Threshold 0.5 typically used for binary classification
+
+
+
