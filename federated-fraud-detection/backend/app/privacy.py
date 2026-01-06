@@ -28,8 +28,22 @@ class DifferentialPrivacyManager:
         q = batch_size / n_samples  # Sampling ratio
         sigma = self.noise_multiplier
         
-        # Approximation: ε ≈ q * steps / sigma
-        epsilon = (q * steps) / (sigma * np.sqrt(2 * np.log(1.25 / delta)))
+        # Handle edge case where noise_multiplier is 0 (no noise = no privacy)
+        if sigma == 0 or sigma < 1e-10:
+            epsilon = None  # No privacy guarantee
+        else:
+            # Approximation: ε ≈ q * steps / sigma  
+            try:
+                log_term = np.log(1.25 / delta)
+                if log_term <= 0:
+                    epsilon = None
+                else:
+                    epsilon = (q * steps) / (sigma * np.sqrt(2 * log_term))
+                    # Check if result is valid
+                    if np.isinf(epsilon) or np.isnan(epsilon):
+                        epsilon = None
+            except (ZeroDivisionError, FloatingPointError):
+                epsilon = None
         
         self.epsilon = epsilon
         self.delta = delta

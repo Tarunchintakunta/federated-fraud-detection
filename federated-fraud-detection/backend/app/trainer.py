@@ -37,7 +37,7 @@ class FederatedTrainer:
         self.fed_avg = FederatedAveraging(n_clients)
         self.dp_manager = DifferentialPrivacyManager(
             l2_norm_clip=1.5,
-            noise_multiplier=0.0,
+            noise_multiplier=1.1,  # Gaussian noise for differential privacy (0 = no privacy)
             num_microbatches=32
         ) if use_dp else None
         
