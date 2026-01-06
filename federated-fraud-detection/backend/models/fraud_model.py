@@ -1,44 +1,43 @@
 """
-Fraud detection model architecture
+Fraud detection model architecture using Scikit-Learn
 """
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 import numpy as np
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+import joblib
 
 class FraudDetectionModel:
-    """Deep learning model for fraud detection"""
+    """Deep learning model for fraud detection using Scikit-Learn"""
     
-    def __init__(self, input_dim=29, learning_rate=0.001):
+    def __init__(self, input_dim=29, learning_rate=0.0001):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.model = None
         
     def build_model(self):
         """Build the fraud detection neural network"""
-        model = keras.Sequential([
-            layers.Input(shape=(self.input_dim,)),
-            layers.Dense(64, activation='relu', name='dense_1'),
-            layers.Dropout(0.3, name='dropout_1'),
-            layers.Dense(32, activation='relu', name='dense_2'),
-            layers.Dropout(0.2, name='dropout_2'),
-            layers.Dense(16, activation='relu', name='dense_3'),
-            layers.Dense(1, activation='sigmoid', name='output')
-        ], name='fraud_detection_model')
-        
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='binary_crossentropy',
-            metrics=[
-                'accuracy',
-                keras.metrics.AUC(name='auc'),
-                keras.metrics.Precision(name='precision'),
-                keras.metrics.Recall(name='recall')
-            ]
+        # MLPClassifier with warm_start=True allows partial_fit (online learning)
+        self.model = MLPClassifier(
+            hidden_layer_sizes=(64, 32, 16),
+            activation='relu',
+            solver='adam',
+            alpha=0.01,
+            batch_size=32,
+            learning_rate='constant',
+            learning_rate_init=self.learning_rate,
+            max_iter=1,  # We control epochs manually
+            random_state=42,
+            warm_start=False,
+            verbose=False
         )
         
-        self.model = model
-        return model
+        # Initialize weights immediately with dummy data
+        # This creates the coefs_ and intercepts_ attributes
+        dummy_X = np.zeros((1, self.input_dim))
+        dummy_y = np.array([0])
+        self.model.partial_fit(dummy_X, dummy_y, classes=np.array([0, 1]))
+        
+        return self.model
     
     def get_model(self):
         """Get or create model"""
@@ -51,28 +50,25 @@ class FraudDetectionModel:
         if self.model is None:
             self.build_model()
         
-        # Handle class imbalance
-        neg_count = np.sum(y_train == 0)
-        pos_count = np.sum(y_train == 1)
+        # Always assume binary classification [0, 1] for consistency across batches
+        all_classes = np.array([0, 1])
         
-        if pos_count > 0:
-            weight_for_0 = (1 / neg_count) * (len(y_train) / 2.0)
-            weight_for_1 = (1 / pos_count) * (len(y_train) / 2.0)
-            class_weight = {0: weight_for_0, 1: weight_for_1}
-        else:
-            class_weight = None
+        history = {'loss': [], 'accuracy': [], 'val_loss': [], 'val_accuracy': []}
         
-        validation_data = (X_val, y_val) if X_val is not None else None
+        # Flatten structure for sklearn
+        y_train = y_train.ravel()
         
-        history = self.model.fit(
-            X_train, y_train,
-            validation_data=validation_data,
-            epochs=epochs,
-            batch_size=batch_size,
-            class_weight=class_weight,
-            verbose=verbose
-        )
-        
+        for epoch in range(epochs):
+            # partial_fit runs one iteration (epoch) on the data
+            self.model.partial_fit(X_train, y_train, classes=all_classes)
+            
+            # Record metrics (simplified)
+            loss = self.model.loss_
+            history['loss'].append(loss)
+            
+            if verbose > 0 and epoch % 5 == 0:
+                print(f"Epoch {epoch+1}/{epochs} - loss: {loss:.4f}")
+                
         return history
     
     def evaluate(self, X_test, y_test):
@@ -80,20 +76,29 @@ class FraudDetectionModel:
         if self.model is None:
             raise ValueError("Model not trained yet")
         
-        results = self.model.evaluate(X_test, y_test, verbose=0)
-        metrics = {
-            'loss': results[0],
-            'accuracy': results[1],
-            'auc': results[2],
-            'precision': results[3],
-            'recall': results[4]
-        }
+        # Predictions
+        y_pred = self.model.predict(X_test)
+        y_prob = self.model.predict_proba(X_test)[:, 1]
         
-        # Calculate F1 score
-        if metrics['precision'] + metrics['recall'] > 0:
-            metrics['f1_score'] = 2 * (metrics['precision'] * metrics['recall']) / (metrics['precision'] + metrics['recall'])
-        else:
-            metrics['f1_score'] = 0.0
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, zero_division=0)
+        recall = recall_score(y_test, y_pred, zero_division=0)
+        f1 = f1_score(y_test, y_pred, zero_division=0)
+        
+        try:
+            auc = roc_auc_score(y_test, y_prob)
+        except:
+            auc = 0.5
+            
+        metrics = {
+            'loss': self.model.loss_,
+            'accuracy': accuracy,
+            'auc': auc,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1
+        }
         
         return metrics
     
@@ -101,41 +106,62 @@ class FraudDetectionModel:
         """Make predictions"""
         if self.model is None:
             raise ValueError("Model not trained yet")
-        return self.model.predict(X)
+        # Return probabilities to match Keras predict output shape (N, 1)
+        return self.model.predict_proba(X)[:, 1].reshape(-1, 1)
     
     def get_weights(self):
-        """Get model weights"""
+        """Get model weights (coefs and intercepts)"""
         if self.model is None:
             raise ValueError("Model not built yet")
-        return self.model.get_weights()
+        
+        # Combine coefs and intercepts into a list suitable for transport/averaging
+        # coefs_ is a list of weight matrices
+        # intercepts_ is a list of bias vectors
+        return self.model.coefs_ + self.model.intercepts_
     
     def set_weights(self, weights):
         """Set model weights"""
         if self.model is None:
             self.build_model()
-        self.model.set_weights(weights)
+            # Must initialize internal structures if setting weights before any training
+            # Dummy fit to initialize shapes
+            dummy_X = np.zeros((1, self.input_dim))
+            dummy_y = np.array([0])
+            self.model.partial_fit(dummy_X, dummy_y, classes=np.array([0, 1]))
+            
+        # weights list contains [coefs..., intercepts...]
+        # MLPClassifier (64, 32, 16) has 3 layers:
+        # coefs: [input->64, 64->32, 32->16, 16->1] (4 matrices)
+        # intercepts: [64, 32, 16, 1] (4 vectors)
+        # Total 8 items in weights list
+        
+        n_layers = len(self.model.coefs_)
+        
+        new_coefs = weights[:n_layers]
+        new_intercepts = weights[n_layers:]
+        
+        self.model.coefs_ = new_coefs
+        self.model.intercepts_ = new_intercepts
     
     def save(self, filepath):
         """Save model"""
         if self.model is None:
             raise ValueError("Model not built yet")
-        self.model.save(filepath)
+        joblib.dump(self.model, filepath)
     
     def load(self, filepath):
         """Load model"""
-        self.model = keras.models.load_model(filepath)
+        self.model = joblib.load(filepath)
         return self.model
-
 
 def create_model(input_dim=29):
     """Factory function to create a fraud detection model"""
     model_builder = FraudDetectionModel(input_dim=input_dim)
     return model_builder.build_model()
 
-
 if __name__ == "__main__":
     # Test model creation
     model = FraudDetectionModel(input_dim=29)
     model.build_model()
-    print("Model Summary:")
-    model.model.summary()
+    print("Model created.")
+

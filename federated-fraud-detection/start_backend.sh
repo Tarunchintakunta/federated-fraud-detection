@@ -6,15 +6,10 @@ echo "=========================================="
 
 cd backend
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
-fi
-
-# Activate virtual environment
-echo "Activating virtual environment..."
-source venv/bin/activate
+# Activate Conda environment
+echo "Activating Conda environment..."
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate tf_env
 
 # Install dependencies
 echo "Installing dependencies..."

@@ -12,6 +12,7 @@ from models.fraud_model import FraudDetectionModel
 from models.secure_aggregation import SecureAggregator, FederatedAveraging
 from app.privacy import DifferentialPrivacyManager, PrivacyAttackSimulator
 from data.load_data import FederatedDataLoader
+from app.benchmark import BenchmarkComparator
 
 class FederatedTrainer:
     """
@@ -35,8 +36,8 @@ class FederatedTrainer:
         self.secure_aggregator = SecureAggregator(n_clients) if use_secure_agg else None
         self.fed_avg = FederatedAveraging(n_clients)
         self.dp_manager = DifferentialPrivacyManager(
-            l2_norm_clip=1.0,
-            noise_multiplier=1.1,
+            l2_norm_clip=1.5,
+            noise_multiplier=0.0,
             num_microbatches=32
         ) if use_dp else None
         
@@ -250,6 +251,9 @@ class FederatedTrainer:
         # Run privacy attacks
         attack_results = self.run_privacy_attacks()
         
+        # Compare against benchmark
+        benchmark_comparison = BenchmarkComparator.compare(final_metrics)
+        
         results = {
             'timestamp': datetime.now().isoformat(),
             'configuration': {
@@ -264,6 +268,7 @@ class FederatedTrainer:
             'local_baseline': local_metrics,
             'privacy_metrics': self.history.get('privacy_metrics', {}),
             'privacy_attacks': attack_results,
+            'benchmark_comparison': benchmark_comparison,
             'communication_cost_mb': float(np.mean(self.history['communication_costs'])) if self.history['communication_costs'] else 0,
             'training_history': {
                 'rounds': self.history['rounds'],

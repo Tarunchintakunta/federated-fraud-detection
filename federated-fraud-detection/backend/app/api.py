@@ -103,14 +103,18 @@ async def get_metrics():
     local = training_results.get('local_baseline', {})
     privacy = training_results.get('privacy_metrics', {})
     attacks = training_results.get('privacy_attacks', {})
+    benchmark = training_results.get('benchmark_comparison', {})
     
     return {
         "federated_model": format_metrics(federated),
         "local_baseline": format_metrics(local),
+        "benchmark_comparison": benchmark,
         "improvement": {
             "auc": calculate_improvement(federated.get('auc', 0), local.get('auc', 0)),
             "f1_score": calculate_improvement(federated.get('f1_score', 0), local.get('f1_score', 0)),
-            "accuracy": calculate_improvement(federated.get('accuracy', 0), local.get('accuracy', 0))
+            "accuracy": calculate_improvement(federated.get('accuracy', 0), local.get('accuracy', 0)),
+            "precision": calculate_improvement(federated.get('precision', 0), local.get('precision', 0)),
+            "recall": calculate_improvement(federated.get('recall', 0), local.get('recall', 0))
         },
         "privacy_metrics": privacy,
         "privacy_attacks": attacks,

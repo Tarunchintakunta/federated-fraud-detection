@@ -88,6 +88,18 @@ const PerformanceCharts = () => {
               <Grid item xs={12} md={6}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom>
+                    Federated vs Industry Standard
+                  </Typography>
+                  <BenchmarkChart
+                    federated={metrics.federated_model}
+                    benchmark={metrics.benchmark_comparison}
+                  />
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom>
                     Federated vs Local Performance
                   </Typography>
                   <ComparisonBarChart
@@ -97,7 +109,7 @@ const PerformanceCharts = () => {
                 </Paper>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={12}>
                 <Paper sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom>
                     Performance Improvement
@@ -142,6 +154,47 @@ const TrainingProgressChart = ({ rounds, metrics, selectedMetric }) => {
     paper_bgcolor: 'white',
     margin: { t: 20, r: 20, b: 50, l: 60 },
     height: 400,
+  };
+
+  return <Plot data={data} layout={layout} style={{ width: '100%' }} config={{ responsive: true }} />;
+};
+
+// Benchmark Comparison Chart
+const BenchmarkChart = ({ federated, benchmark }) => {
+  const metrics = ['accuracy', 'recall', 'precision', 'f1_score'];
+  const labels = ['Accuracy', 'Recall', 'Precision', 'F1 Score'];
+
+  // Extract benchmark values safely
+  const benchmarkValues = metrics.map(m => 
+    benchmark && benchmark[m] ? benchmark[m].standard : 0
+  );
+
+  const data = [
+    {
+      x: labels,
+      y: benchmarkValues,
+      type: 'bar',
+      name: 'Industry Standard',
+      marker: { color: '#9e9e9e' }, // Grey for standard
+    },
+    {
+      x: labels,
+      y: metrics.map((m) => federated[m] || 0),
+      type: 'bar',
+      name: 'My FL Model',
+      marker: { color: '#2196f3' }, // Blue for my model
+    },
+  ];
+
+  const layout = {
+    barmode: 'group',
+    xaxis: { title: 'Metrics' },
+    yaxis: { title: 'Score', range: [0, 1], gridcolor: '#eee' },
+    plot_bgcolor: '#fafafa',
+    paper_bgcolor: 'white',
+    margin: { t: 20, r: 20, b: 50, l: 60 },
+    height: 400,
+    legend: { x: 0.7, y: 1 },
   };
 
   return <Plot data={data} layout={layout} style={{ width: '100%' }} config={{ responsive: true }} />;

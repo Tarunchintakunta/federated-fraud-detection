@@ -1,14 +1,8 @@
-"""
-Simple script to clean the dataset - removes missing values and duplicates
-"""
 import pandas as pd
 import numpy as np
 from pathlib import Path
 
 def clean_dataset(input_file='creditcard.csv', output_file='creditcard_cleaned.csv'):
-    """
-    Clean dataset: remove missing values, duplicates, and invalid entries
-    """
     data_dir = Path(__file__).parent
     
     input_path = data_dir / input_file
@@ -20,7 +14,6 @@ def clean_dataset(input_file='creditcard.csv', output_file='creditcard_cleaned.c
     original_size = len(df)
     print(f"Original dataset size: {original_size:,} rows")
     
-    # Step 1: Remove duplicates
     df = df.drop_duplicates()
     duplicates_removed = original_size - len(df)
     if duplicates_removed > 0:
